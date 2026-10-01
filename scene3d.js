@@ -386,10 +386,12 @@ export class SolarSystemViewer3D {
     const teff = systemData.starTeff || 5778;
     const starColorInfo = this.getStarColor(teff);
 
+    let effectiveStarRadius = 3.0;
+
     // 1. Central Star(s)
     if (starCount === 1) {
-      const starRadius = Math.max(2.2, Math.min(6.0, (systemData.starRadius || 1.0) * 3.0));
-      const starGeom = new THREE.SphereGeometry(starRadius, 32, 32);
+      effectiveStarRadius = Math.max(2.2, Math.min(6.0, (systemData.starRadius || 1.0) * 3.0));
+      const starGeom = new THREE.SphereGeometry(effectiveStarRadius, 32, 32);
       const starMat = new THREE.MeshBasicMaterial({ color: starColorInfo.hex });
       const starMesh = new THREE.Mesh(starGeom, starMat);
       starMesh.userData = {
@@ -407,7 +409,7 @@ export class SolarSystemViewer3D {
         customDesc: systemData.customDesc || systemData.description
       };
       
-      const glowGeom = new THREE.SphereGeometry(starRadius * 1.3, 32, 32);
+      const glowGeom = new THREE.SphereGeometry(effectiveStarRadius * 1.3, 32, 32);
       const glowMat = new THREE.MeshBasicMaterial({
         color: starColorInfo.hex,
         transparent: true,
@@ -426,6 +428,7 @@ export class SolarSystemViewer3D {
     } else {
       // Binary or Multiple Star System
       const binaryRadius = 4.0;
+      effectiveStarRadius = binaryRadius + 2.5;
       for (let s = 0; s < Math.min(starCount, 3); s++) {
         const sRadius = 2.0 - (s * 0.4);
         const sTeff = teff - (s * 1200);
@@ -476,7 +479,7 @@ export class SolarSystemViewer3D {
     allAu.push(hzIn, hzOut);
     const maxAu = Math.max(...allAu, 0.1);
 
-    const baseClearance = starRadius + 3.2;
+    const baseClearance = effectiveStarRadius + 3.2;
 
     const mapDist = (au) => {
       if (!au || au <= 0) au = 0.1;

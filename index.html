@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CosmoScope 3D — Explorador Interactivo del Universo y Exoplanetas</title>
+  <meta name="description" content="Visualizador 3D interactivo de sistemas estelares, zonas habitables, coordenadas astronómicas con origen en la Tierra y exoplanetas de la NASA.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 3D Canvas Background & Scene -->
+  <div id="canvas-container"></div>
+
+  <!-- Cosmic Background Overlay for Depth -->
+  <div class="cosmos-backdrop"></div>
+
+  <!-- App Header & Navigation Bar -->
+  <header class="app-header">
+    <div class="brand-container">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>COSMOSCOPE <span>3D</span></h1>
+        <p class="subtitle">Catálogo de Exoplanetas de la NASA</p>
+      </div>
+    </div>
+
+    <!-- Mode Switcher: System View vs Earth-Centered Galaxy Map -->
+    <div class="view-mode-tabs">
+      <button id="mode-system-btn" class="mode-tab active" title="Ver planetas y estrellas orbitando en el sistema actual">
+        <span>🪐 Vista Sistema</span>
+      </button>
+      <button id="mode-galaxy-btn" class="mode-tab" title="Ver todos los 4,750 sistemas en 3D con origen en la Tierra [0,0,0]">
+        <span class="pulse-dot"></span>
+        <span>🌌 Mapa Estelar (Origen Tierra)</span>
+      </button>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-section">
+      <div class="search-bar-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="system-search-input" placeholder="Buscar estrella o planeta (ej. TRAPPIST-1, Kepler-16, Tierra)..." autocomplete="off">
+        <button id="clear-search-btn" class="clear-btn" title="Limpiar búsqueda" style="display:none;">&times;</button>
+        <button id="toggle-filter-btn" class="filter-toggle-btn" title="Filtros avanzados">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+          </svg>
+          <span>Filtros</span>
+          <span id="active-filter-badge" class="badge-count" style="display:none;">0</span>
+        </button>
+      </div>
+      <!-- Autocomplete Dropdown -->
+      <div id="search-suggestions" class="search-dropdown"></div>
+    </div>
+
+    <!-- Quick Stat / Counter -->
+    <div class="catalog-stat">
+      <span class="stat-label">Sistemas cargados:</span>
+      <span id="catalog-count-badge" class="stat-number">4,750</span>
+    </div>
+  </header>
+
+  <!-- Quick Filter Presets Chips -->
+  <div class="presets-container">
+    <button class="preset-chip active" data-preset="solar">☀️ Sistema Solar [0,0,0]</button>
+    <button class="preset-chip" data-preset="trappist">🌌 TRAPPIST-1 (7 planetas)</button>
+    <button class="preset-chip" data-preset="binary-tatooine">✨ Kepler-16 (2 Soles / Tatooine)</button>
+    <button class="preset-chip" data-preset="kepler47">☀️☀️ Kepler-47 (2 Soles, 3 Planetas)</button>
+    <button class="preset-chip" data-preset="kepler90">🪐 Kepler-90 (8 Planetas)</button>
+    <button class="preset-chip" data-preset="proxima">⭐ Próxima Centauri (4.2 AL)</button>
+    <button class="preset-chip" data-preset="habitable">🌱 Mundos Habitables</button>
+    <button class="preset-chip" data-preset="three-planets">3️⃣ Sistemas de 3 Planetas</button>
+    <button class="preset-chip" data-preset="random">🎲 Sistema Aleatorio</button>
+  </div>
+
+  <!-- Advanced Filters Drawer / Modal -->
+  <div id="filter-drawer" class="filter-drawer">
+    <div class="drawer-header">
+      <h3>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+        </svg>
+        Filtros de Exploración Cósmica
+      </h3>
+      <button id="close-filter-btn" class="close-drawer-btn">&times;</button>
+    </div>
+    
+    <div class="drawer-content">
+      <!-- Filter: Search Keyword inside drawer -->
+      <div class="filter-group">
+        <label class="filter-title">🔍 Búsqueda rápida por nombre, planeta o constelación:</label>
+        <div class="filter-search-box">
+          <input type="text" id="filter-keyword-input" placeholder="Filtrar por texto (ej. TRAPPIST, Kepler, Cisne, Tierra)..." autocomplete="off">
+        </div>
+      </div>
+
+      <!-- Filter: Stars Count -->
+      <div class="filter-group">
+        <label class="filter-title">Número de Soles / Estrellas en el sistema:</label>
+        <div class="filter-buttons-grid" id="star-count-filter">
+          <button class="filter-btn active" data-val="all">Cualquiera</button>
+          <button class="filter-btn" data-val="1">1 Sol (Simple)</button>
+          <button class="filter-btn" data-val="2">2 Soles (Binario)</button>
+          <button class="filter-btn" data-val="3+">3+ Soles (Múltiple)</button>
+        </div>
+      </div>
+
+      <!-- Filter: Spectral Type of Host Star -->
+      <div class="filter-group">
+        <label class="filter-title">⭐ Tipo Espectral del Sol / Estrella:</label>
+        <div class="filter-buttons-grid" id="spectral-type-filter">
+          <button class="filter-btn active" data-val="all">Cualquiera</button>
+          <button class="filter-btn" data-val="solar">Solar (G / F)</button>
+          <button class="filter-btn" data-val="cool">Enana Fría (K / M)</button>
+          <button class="filter-btn" data-val="hot_star">Gigante (A / B)</button>
+        </div>
+      </div>
+
+      <!-- Filter: Planets Count -->
+      <div class="filter-group">
+        <label class="filter-title">Número de Planetas Confirmados:</label>
+        <div class="filter-buttons-grid" id="planet-count-filter">
+          <button class="filter-btn active" data-val="all">Todos</button>
+          <button class="filter-btn" data-val="1">1</button>
+          <button class="filter-btn" data-val="2">2</button>
+          <button class="filter-btn" data-val="3">3</button>
+          <button class="filter-btn" data-val="4">4</button>
+          <button class="filter-btn" data-val="5+">5 o más</button>
+        </div>
+      </div>
+
+      <!-- Filter: Planetary Thermal Range -->
+      <div class="filter-group">
+        <label class="filter-title">🌡️ Clima Térmico Planetario:</label>
+        <div class="filter-buttons-grid" id="temp-range-filter">
+          <button class="filter-btn active" data-val="all">Cualquier T°</button>
+          <button class="filter-btn" data-val="temperate">🌱 Templados (200 - 320 K)</button>
+          <button class="filter-btn" data-val="hot">🔥 Cálidos (> 320 K)</button>
+          <button class="filter-btn" data-val="cold">❄️ Gélidos (< 200 K)</button>
+        </div>
+      </div>
+
+      <!-- Filter: Habitability & Type toggles -->
+      <div class="filter-group">
+        <label class="filter-title">Características Especiales:</label>
+        <div class="checkbox-list">
+          <label class="checkbox-card">
+            <input type="checkbox" id="filter-habitable">
+            <span class="custom-chk"></span>
+            <div class="chk-info">
+              <strong>🌿 Solo con planetas en Zona Habitable</strong>
+              <small>Mundos a temperatura apta para agua líquida</small>
+            </div>
+          </label>
+
+          <label class="checkbox-card">
+            <input type="checkbox" id="filter-terrestrial">
+            <span class="custom-chk"></span>
+            <div class="chk-info">
+              <strong>🪨 Mundos Rocosos / Super-Tierras</strong>
+              <small>Planetas con radio menor a 2 veces la Tierra</small>
+            </div>
+          </label>
+
+          <label class="checkbox-card">
+            <input type="checkbox" id="filter-gas-giants">
+            <span class="custom-chk"></span>
+            <div class="chk-info">
+              <strong>🪐 Gigantes Gaseosos (Jovianos)</strong>
+              <small>Grandes mundos gaseosos masivos</small>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Filter: Distance Slider -->
+      <div class="filter-group">
+        <div class="range-header">
+          <label class="filter-title">Distancia máxima desde la Tierra:</label>
+          <span id="distance-value-display">Todas las distancias</span>
+        </div>
+        <input type="range" id="filter-distance" min="0" max="4000" step="50" value="4000" class="custom-slider">
+        <div class="range-labels">
+          <span>0 AL</span>
+          <span>1,000 AL</span>
+          <span>2,500 AL</span>
+          <span>4,000+ AL</span>
+        </div>
+      </div>
+
+      <!-- Filter Results Preview -->
+      <div class="filter-results-summary">
+        <span id="filtered-systems-count">Mostrando 4,750 sistemas</span>
+      </div>
+
+      <!-- Actions -->
+      <div class="drawer-actions">
+        <button id="reset-filters-btn" class="btn-secondary">Restablecer Filtros</button>
+        <button id="apply-filters-btn" class="btn-primary">Ver Resultados Filtrados</button>
+      </div>
+
+      <!-- Filtered list gallery -->
+      <div id="filtered-gallery" class="filtered-gallery"></div>
+    </div>
+  </div>
+
+  <!-- Active System Information HUD (Left Panel) -->
+  <aside class="system-hud-panel" id="system-hud">
+    <div class="hud-header">
+      <div class="hud-tag" id="hud-system-tag">SISTEMA ESTELAR</div>
+      <h2 id="hud-system-name">Sistema Solar</h2>
+      <div class="hud-distance" id="hud-system-dist">📍 A 0.0 años luz de la Tierra</div>
+    </div>
+
+    <!-- Astronomical Coordinates Card (Origin Earth) -->
+    <div class="hud-coords-card">
+      <div class="coords-header">
+        <div class="coords-title">
+          <span class="icon-radar">📡</span>
+          <span>COORDENADAS ASTRONÓMICAS</span>
+        </div>
+        <span class="origin-badge">ORIGEN: TIERRA [0,0,0]</span>
+      </div>
+      <div class="coords-grid">
+        <div class="coord-item">
+          <span class="coord-label">Ascensión Recta (RA / α):</span>
+          <span class="coord-val" id="hud-ra-val">00h 00m 00s</span>
+        </div>
+        <div class="coord-item">
+          <span class="coord-label">Declinación (Dec / δ):</span>
+          <span class="coord-val" id="hud-dec-val">+00° 00' 00"</span>
+        </div>
+        <div class="coord-item">
+          <span class="coord-label">Constelación IAU:</span>
+          <span class="coord-val highlight" id="hud-constellation-val">Local (Vía Láctea)</span>
+        </div>
+        <div class="coord-item">
+          <span class="coord-label">Distancia Radial (r):</span>
+          <span class="coord-val" id="hud-rad-dist-val">0.0 Años Luz (0 pc)</span>
+        </div>
+      </div>
+      
+      <!-- Cartesian Vector from Earth -->
+      <div class="cartesian-vector-bar">
+        <span class="vec-title">Vector Cartesiano 3D (Años Luz):</span>
+        <div class="vec-values" id="hud-cartesian-val">
+          <span class="vec-tag vx">X: 0.0</span>
+          <span class="vec-tag vy">Y: 0.0</span>
+          <span class="vec-tag vz">Z: 0.0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud-stats-grid">
+      <div class="hud-stat-box">
+        <span class="stat-ico">☀️</span>
+        <div>
+          <span class="stat-name">Estrellas / Soles</span>
+          <span class="stat-val" id="hud-stars-val">1 (G2V)</span>
+        </div>
+      </div>
+      <div class="hud-stat-box">
+        <span class="stat-ico">🪐</span>
+        <div>
+          <span class="stat-name">Planetas</span>
+          <span class="stat-val" id="hud-planets-val">8 planetas</span>
+        </div>
+      </div>
+      <div class="hud-stat-box">
+        <span class="stat-ico">🌿</span>
+        <div>
+          <span class="stat-name">Zona Habitable</span>
+          <span class="stat-val" id="hud-hz-val">0.95 - 1.67 UA</span>
+        </div>
+      </div>
+      <div class="hud-stat-box">
+        <span class="stat-ico">🌡️</span>
+        <div>
+          <span class="stat-name">Temp. Estrella</span>
+          <span class="stat-val" id="hud-teff-val">5,778 K</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Description & Formation -->
+    <div class="hud-description-card">
+      <h4>Origen y Características:</h4>
+      <p id="hud-description-text">Nuestro hogar cósmico. Formado hace 4.600 millones de años a partir del colapso gravitatorio de una densa nebulosa protoestelar.</p>
+    </div>
+
+    <!-- Habitable Zone Legend -->
+    <div class="hz-legend-card">
+      <div class="legend-bar">
+        <div class="zone hot" title="Zona Tórrida / Muy Caliente"></div>
+        <div class="zone hz" title="Zona Habitable (Goldilocks)"></div>
+        <div class="zone cold" title="Zona Fría / Congelada"></div>
+      </div>
+      <div class="legend-labels">
+        <span>🔥 Muy Cálida</span>
+        <span class="hz-active">🌱 Zona Habitable</span>
+        <span>❄️ Gélida</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Planets Ribbon Bar (Bottom) -->
+  <div class="planets-ribbon-container" id="planets-ribbon-container">
+    <div class="ribbon-title">Cuerpos Celestes del Sistema:</div>
+    <div id="planets-ribbon" class="planets-ribbon"></div>
+  </div>
+
+  <!-- 3D Viewport Controls & Overlays (Right/Bottom) -->
+  <div class="viewport-controls">
+    <!-- View Options -->
+    <div class="control-group">
+      <button id="toggle-hz-btn" class="ctrl-btn active" title="Mostrar/Ocultar Zona Habitable">
+        <span class="ctrl-dot hz-dot"></span>
+        <span>Zona Habitable</span>
+      </button>
+      <button id="toggle-orbits-btn" class="ctrl-btn active" title="Mostrar/Ocultar Líneas Orbitales">
+        <span>⭕ Órbitas</span>
+      </button>
+      <button id="toggle-grid-btn" class="ctrl-btn active" title="Mostrar/Ocultar Rejilla de Coordenadas de la Tierra">
+        <span>🌐 Rejilla Celeste</span>
+      </button>
+      <button id="toggle-labels-btn" class="ctrl-btn active" title="Mostrar/Ocultar Nombres">
+        <span>🏷️ Nombres</span>
+      </button>
+      <button id="reset-cam-btn" class="ctrl-btn" title="Restablecer posición de cámara">
+        <span>🔄 Vista General</span>
+      </button>
+    </div>
+
+    <!-- Time & Orbit Simulation Speed -->
+    <div class="speed-controls">
+      <span class="speed-label">Velocidad:</span>
+      <button class="speed-btn" data-speed="0">⏸</button>
+      <button class="speed-btn" data-speed="0.5">0.5x</button>
+      <button class="speed-btn active" data-speed="1">1x</button>
+      <button class="speed-btn" data-speed="5">5x</button>
+      <button class="speed-btn" data-speed="25">25x</button>
+    </div>
+  </div>
+
+  <!-- Floating Dynamic 3D Tooltip (Follows Cursor / Celestial Body) -->
+  <div id="celestial-tooltip" class="floating-tooltip" style="display:none;">
+    <div class="tooltip-header">
+      <div class="tooltip-badge" id="tt-badge">Planeta Rocoso</div>
+      <h3 id="tt-name">Tierra</h3>
+      <div class="tooltip-subtitle" id="tt-type">🌱 En Zona Habitable</div>
+    </div>
+    
+    <div class="tooltip-grid">
+      <div class="tt-item">
+        <span class="tt-label">Distancia al Sol:</span>
+        <span class="tt-val" id="tt-dist-star">1.000 UA</span>
+      </div>
+      <div class="tt-item">
+        <span class="tt-label">Distancia a la Tierra:</span>
+        <span class="tt-val" id="tt-dist-earth">0.0 AL</span>
+      </div>
+      <div class="tt-item highlight-temp">
+        <span class="tt-label">Temperatura de Equilibrio:</span>
+        <span class="tt-val" id="tt-temp">288 K (+15 °C)</span>
+      </div>
+      <div class="tt-item">
+        <span class="tt-label">Gravedad / Masa:</span>
+        <span class="tt-val" id="tt-mass-grav">1.00 M⊕ (1.00 g)</span>
+      </div>
+      <div class="tt-item">
+        <span class="tt-label">Período Orbital:</span>
+        <span class="tt-val" id="tt-period">365.25 días</span>
+      </div>
+      <div class="tt-item">
+        <span class="tt-label">Radio Comparativo:</span>
+        <span class="tt-val" id="tt-radius">1.00 x Tierra</span>
+      </div>
+      <div class="tt-item">
+        <span class="tt-label">Ascensión Recta (RA):</span>
+        <span class="tt-val" id="tt-ra">00h 00m</span>
+      </div>
+      <div class="tt-item">
+        <span class="tt-label">Declinación (Dec):</span>
+        <span class="tt-val" id="tt-dec">+00° 00'</span>
+      </div>
+    </div>
+
+    <div class="tooltip-desc">
+      <strong>Explicación y Formación:</strong>
+      <p id="tt-desc">El único mundo conocido con vida biológica y agua líquida abundante en superficie.</p>
+    </div>
+
+    <div class="tooltip-footer">
+      <span>💡 Haz clic para enfocar la cámara y fijar la trayectoria orbital</span>
+    </div>
+  </div>
+
+  <!-- Instruction Helper Overlay (First visit) -->
+  <div id="guide-hint" class="guide-hint">
+    <span>✨ <strong>Exploración 3D:</strong> Cambia entre <em>Vista Sistema</em> y <em>Mapa Estelar (Origen Tierra)</em> arriba &bull; Arrastra para rotar en 3D &bull; Pasa el cursor sobre cuerpos celestes para ver sus coordenadas astronómicas exactas</span>
+    <button id="close-guide-btn">&times;</button>
+  </div>
+
+  <!-- Scripts: Local Three.js via ES Module and Application Logic -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./libs/three.module.js",
+        "three/addons/controls/OrbitControls.js": "./libs/OrbitControls.js"
+      }
+    }
+  </script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

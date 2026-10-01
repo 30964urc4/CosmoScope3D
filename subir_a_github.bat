@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
-title Subir CosmoScope 3D a GitHub
+title Actualizar CosmoScope 3D en GitHub
 
 cd /d "%~dp0"
 
@@ -11,59 +11,66 @@ if exist "%LocalAppData%\Programs\Git\cmd" (
 where git >nul 2>nul
 if errorlevel 1 (
     echo [ERROR] Git no esta detectado en el sistema.
-    echo Asegurate de que Git este instalado.
-    echo.
     pause
     exit /b 1
 )
 
 echo ========================================================
-echo            SUBIR COSMOSCOPE 3D A GITHUB
+echo         ACTUALIZAR COSMOSCOPE 3D EN GITHUB
 echo ========================================================
 echo.
-echo Git detectado correctamente.
-echo.
-echo Introduce el enlace HTTPS de tu repositorio de GitHub:
-echo Ejemplo: https://github.com/30964urc4/CosmoScope-3D.git
-echo.
-set /p "REPO_URL=URL del repositorio: "
 
-if "%REPO_URL%"=="" (
-    echo.
-    echo [!] No has introducido ninguna URL. Operacion cancelada.
-    echo.
-    pause
-    exit /b 1
+git rev-parse --is-inside-work-tree >nul 2>nul
+if errorlevel 1 (
+    git init
+    git branch -M main
 )
 
-echo.
-echo [1/4] Inicializando repositorio local Git...
-git init
+git remote get-url origin >nul 2>nul
+if errorlevel 1 (
+    echo Repositorio no conectado a GitHub.
+    echo Introduce el enlace HTTPS de tu repositorio:
+    echo Ejemplo: https://github.com/30964urc4/CosmoScope3D.git
+    echo.
+    set /p "REPO_URL=URL del repositorio: "
+    if "!REPO_URL!"=="" (
+        echo [!] Operacion cancelada.
+        pause
+        exit /b 1
+    )
+    git remote add origin !REPO_URL!
+) else (
+    for /f "tokens=*" %%a in ('git remote get-url origin') do set "REPO_URL=%%a"
+    echo Repositorio conectado: !REPO_URL!
+    echo.
+)
 
-echo [2/4] Preparando archivos del proyecto...
+echo Que cambios has hecho? (Mensaje del commit)
+echo (Puedes pulsar Enter para poner 'Actualizacion de CosmoScope 3D'):
+set "COMMIT_MSG="
+set /p "COMMIT_MSG=Mensaje: "
+if "!COMMIT_MSG!"=="" set "COMMIT_MSG=Actualizacion de CosmoScope 3D"
+
+echo.
+echo [1/3] Preparando archivos modificados...
 git add .
 
-echo [3/4] Creando commit principal...
-git commit -m "Release CosmoScope 3D v2.0: Exoplanet Visualizer"
+echo [2/3] Guardando cambios locales...
+git commit -m "!COMMIT_MSG!"
 
-echo [4/4] Conectando con GitHub en rama main...
-git branch -M main
-git remote remove origin >nul 2>nul
-git remote add origin %REPO_URL%
-
-echo.
-echo Enviando archivos a GitHub...
-echo (Si es la primera vez, se abrira una ventana para autorizar GitHub).
-git push -u origin main
+echo [3/3] Subiendo cambios a GitHub (rama main)...
+git push origin main
 
 if errorlevel 1 (
     echo.
-    echo [!] Hubo un error al subir a GitHub. Revisa la URL o tu conexion.
+    echo [!] Hubo un error al subir a GitHub. Comprueba tu conexion o permisos.
 ) else (
     echo.
     echo ========================================================
-    echo         PROYECTO SUBIDO CON EXITO A GITHUB
+    echo      CAMBIOS ACTUALIZADOS CON EXITO EN GITHUB
     echo ========================================================
+    echo Tu web en GitHub Pages se actualizara en 1 minuto en:
+    echo https://30964urc4.github.io/CosmoScope3D/
 )
 
 echo.

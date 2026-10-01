@@ -11,7 +11,7 @@ ENV/
 # PyInstaller / Build
 build/
 dist/
-*.exe
+!CosmoScope3D.exe
 
 # Browser & runtime profiles
 app_profile/
